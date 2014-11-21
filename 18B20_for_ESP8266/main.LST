@@ -1,0 +1,469 @@
+C51 COMPILER V9.53.0.0   MAIN                                                              10/15/2014 00:04:58 PAGE 1   
+
+
+C51 COMPILER V9.53.0.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN main.OBJ
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE main.c LARGE BROWSE DEBUG OBJECTEXTEND TABS(2)
+
+line level    source
+
+   1          /*************  ±¾µØ³£Á¿ÉùÃ÷  **************/
+   2          #define MAIN_Fosc   22118400L //¶¨ÒåÖ÷Ê±ÖÓ
+   3          #define RX1_Lenth   32      //´®¿Ú½ÓÊÕ»º³å³¤¶È
+   4          #define BaudRate1   115200UL  //Ñ¡Ôñ²¨ÌØÂÊ
+   5          #define Timer1_Reload (65536UL -(MAIN_Fosc / 4 / BaudRate1))    //Timer 1 ÖØ×°Öµ£¬ ¶ÔÓ¦300KHZ
+   6          #define Timer2_Reload (65536UL -(MAIN_Fosc / 4 / BaudRate1))    //Timer 2 ÖØ×°Öµ£¬ ¶ÔÓ¦300KHZ
+   7          #include  "STC15Fxxxx.H"
+   8          #include<intrins.h>
+   9          #define uchar unsigned char
+  10          #define uint unsigned int
+  11          /*************  ±¾µØ±äÁ¿ÉùÃ÷  **************/
+  12          u8  idata RX1_Buffer[RX1_Lenth];  //½ÓÊÕ»º³å
+  13          u8  TX1_Cnt;  //·¢ËÍ¼ÆÊý
+  14          u8  RX1_Cnt;  //½ÓÊÕ¼ÆÊý
+  15          bit B_TX1_Busy; //·¢ËÍÃ¦±êÖ¾
+  16          /*************  ¶Ë¿ÚÒý½Å¶¨Òå  **************/
+  17          sbit LED1=P1^0;//LED1
+  18          sbit LED2=P1^1;//LED2
+  19          sbit LED3=P3^7;//LED3
+  20          sbit DK1=P3^3;//¼ÌµçÆ÷
+  21          sbit BEEP=P3^4;//·äÃùÆ÷
+  22          sbit K1=P1^3;//°´¼ü1
+  23          sbit K2=P1^2;//°´¼ü2
+  24          sbit K3=P1^4;//°´¼ü3
+  25          sbit DQ=P1^6;//18B20ÎÂ¶È´«¸ÐÆ÷
+  26          char led1bl,led2bl,led3bl;
+  27          #define jump_ROM 0xCC                   //Ìø¹ýROMÃüÁî
+  28          #define start    0x44               //Æô¶¯×ª»»ÃüÁî
+  29          #define read_EEROM 0xBE                 //¶Á´æ´¢Æ÷ÃüÁî
+  30          uchar TMPH,TMPL;                //ÎÂ¶ÈÖµ
+  31          uchar HL;                      //µ±Ç°ÎÂ¶È
+  32          unsigned char LYMS[13]={0x41,0x54,0x2B,0x43,0x57,0x4D,0x4F,0x44,0x45,0x3D,0x32,0x0D,0x0A};//AT+CWMODE=2 Éè
+             -ÖÃ³ÉÂ·ÓÉÄ£Ê½
+  33          unsigned char SZLY[38]={0x41,0x54,0x2B,0x43,0x57,0x53,0x41,0x50,0x3D,0x22,0x45,0x53,0x50,0x38,0x32,0x36,0x
+             -36,0x22,0x2C,0x22,0x30,0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39,0x22,0x2C,0x31,0x31,0x2C,0x33,0x0D,0x0A};//AT+CWSAP=
+             -"ESP8266","0123456789",11,0 ÉèÖÃÂ·ÓÉ
+  34          unsigned char RST[8]={0x41,0x54,0x2B,0x52,0x53,0x54,0x0D,0x0A};//AT+RST ÖØÆô
+  35          unsigned char SZDLJ[13]={0x41,0x54,0x2B,0x43,0x49,0x50,0x4D,0x55,0x58,0x3D,0x31,0x0D,0x0A};//AT+CIPMUX=1 É
+             -èÖÃ³É¶àÁ¬½Ó
+  36          unsigned char KQFU[21]={0x41,0x54,0x2B,0x43,0x49,0x50,0x53,0x45,0x52,0x56,0x45,0x52,0x3D,0x31,0x2C,0x35,0x
+             -30,0x30,0x30,0x0D,0x0A};//AT+CIPSERVER=1,5000 ¿ªÆôTCP·þÎñ¶Ë¿Ú
+  37          unsigned char FSSJ[11]={0x41,0x54,0x2B,0x43,0x49,0x50,0x53,0x45,0x4E,0x44,0x3D};//AT+CIPSEND= ·¢ËÍÊý¾Ý
+  38          unsigned char WDSJ[4]={0x00,0x00,0x00,0x00};
+  39          void Delay1(unsigned long ms)
+  40          {
+  41   1        unsigned char i, j,k;
+  42   1        for(k=0;k<ms;k++)
+  43   1        {
+  44   2          _nop_();
+  45   2          _nop_();
+  46   2          i = 22;
+  47   2          j = 128;
+  48   2          do
+  49   2          {
+  50   3            while (--j);
+C51 COMPILER V9.53.0.0   MAIN                                                              10/15/2014 00:04:58 PAGE 2   
+
+  51   3          } while (--i);
+  52   2        }
+  53   1      }
+  54          void Delay2(unsigned long cnt)
+  55          {
+  56   1        long i;
+  57   1        for(i=0;i<cnt*100;i++);
+  58   1      }
+  59          void Delay3(unsigned int N) 
+  60          {
+  61   1        int i;
+  62   1        for(i=0;i<N*10;i++);
+  63   1      }
+  64          //--------------------
+  65          // º¯ÊýÃû³Æ£º Reset
+  66          // Èë¿Ú²ÎÊý£º ÎÞ
+  67          // ·µ»Ødeceive_ready
+  68          // º¯Êý¹¦ÄÜ£º¸´Î» 
+  69          //--------------------
+  70          unsigned char Reset(void) 
+  71          {
+  72   1        unsigned char deceive_ready;
+  73   1        Delay3(10); 
+  74   1        DQ=0;                               //À­µÍDQÏß 
+  75   1        Delay3(29);                          //ÑÓÊ±ÖÁÉÙ480us~960us
+  76   1        DQ=1;                               //½«DQÏßÉèÖÃÎ»Âß¼­¸ß    
+  77   1        Delay3(3);                           //ÑÓÊ±µÈ´ýdeceive_readyÏìÓ¦ 
+  78   1        deceive_ready=DQ;                   //²ÉÑùdeceive_readyÐÅºÅ
+  79   1        Delay3(25);                          //µÈ´ýÊ±Ðò½áÊø
+  80   1        return(deceive_ready);              //ÓÐdeceive_readyÐÅºÅÊ±·µ»Ø0£¬·ñÔò·µ»Ø1
+  81   1      }
+  82          
+  83          
+  84          //---------------------------
+  85          // º¯ÊýÃû³Æ£ºread_bit
+  86          // Èë¿Ú²ÎÊý£º ÎÞ
+  87          // ·µ»Ø½ÓÊÕµÄÊý¾Ý
+  88          // º¯Êý¹¦ÄÜ£º¶ÁÒ»¸öbit×Ó³ÌÐò 
+  89          //---------------------------
+  90          unsigned char read_bit(void)
+  91          {
+  92   1        unsigned char i;
+  93   1        DQ=0;                                 //À­µÍDQÏß¿ªÊ¼Ê±Ðò
+  94   1        DQ=1;                                 //Éý¸ßDQÏß                        
+  95   1        for(i=0;i<3;i++);         //ÑÓÊ±ÖÁÊ±Ðò¿ªÊ¼15us
+  96   1        return(DQ);                           //·µ»ØDQÖµ
+  97   1      }
+  98          
+  99          
+ 100          //---------------------------
+ 101          // º¯ÊýÃû³Æ£º write_bit
+ 102          // Èë¿Ú²ÎÊý£º bitval
+ 103          // º¯Êý¹¦ÄÜ£ºÐ´Ò»¸öbit×Ó³ÌÐò 
+ 104          //---------------------------
+ 105          void write_bit(unsigned char bitval)
+ 106          {
+ 107   1        DQ=0;                             //À­µÍDQÏß¿ªÊ¼Ê±Ðò
+ 108   1        if(bitval==1)
+ 109   1          DQ=1;                             //Èç¹ûÐ´Âß¼­Îª¸ß
+ 110   1        Delay3(5);                         //ÑÓÊ± 
+ 111   1        DQ=1;                             //Éý¸ßDQÏß 
+ 112   1      }
+C51 COMPILER V9.53.0.0   MAIN                                                              10/15/2014 00:04:58 PAGE 3   
+
+ 113          
+ 114          
+ 115          //----------------------------
+ 116          // º¯ÊýÃû³Æ£º write_byte
+ 117          // Èë¿Ú²ÎÊý£º val
+ 118          // º¯Êý¹¦ÄÜ£ºÐ´Ò»¸öbyte×Ó³ÌÐò 
+ 119          //----------------------------
+ 120          void write_byte(unsigned char val)
+ 121          {
+ 122   1        unsigned char i,temp;
+ 123   1        for(i=0;i<8;i++)
+ 124   1        {
+ 125   2          temp=val>>i;                        //½«valÎ»ÓÒÒÆiÎ»¸³Öµ¸ø±Ètemp
+ 126   2          temp=temp&0x01;                     //È¡temp×îµÍÎ»
+ 127   2          write_bit(temp);
+ 128   2          Delay3(5);                           //ÑÓÊ±ÖÁÊ±Ðò½áÊø
+ 129   2        }
+ 130   1      }
+ 131          
+ 132          
+ 133          //----------------------------
+ 134          // º¯ÊýÃû³Æ£º read_byte
+ 135          // ·µ»Ø½ÓÊÕµÄÊý¾Ý value
+ 136          // º¯Êý¹¦ÄÜ£º¶ÁÒ»¸öbyte×Ó³ÌÐò 
+ 137          //----------------------------
+ 138          unsigned char read_byte(void)
+ 139          {
+ 140   1        unsigned char i,m,receive_data;
+ 141   1        m=1;receive_data=0;                          //³õÊ¼»¯
+ 142   1        for(i=0;i<8;i++)
+ 143   1        {
+ 144   2          if(read_bit()) 
+ 145   2          {
+ 146   3            receive_data=receive_data+(m<<i);
+ 147   3          }                                          //Ã¿¶ÁÒ»Î»Êý¾Ý¾Ý£¬×óÒÆÒ»Î» 
+ 148   2          Delay3(6);                                  //ÑÓÊ±ÖÁÊ±Ðò½áÊø 
+ 149   2        } 
+ 150   1        return(receive_data);                        //·µ»Øvalue
+ 151   1      }
+ 152          
+ 153          
+ 154          //---------------------------
+ 155          // º¯ÊýÃû³Æ£º Get_temp
+ 156          // ·µ»Ø½ÓÊÕµÄÊý¾Ý TMPL, TMPH
+ 157          // º¯Êý¹¦ÄÜ£ºÈ¡³öÎÂ¶ÈÖµ
+ 158          //---------------------------
+ 159          uint Get_temp(void)
+ 160          {
+ 161   1        unsigned int T;
+ 162   1        //EA = 0;
+ 163   1        Reset();
+ 164   1        write_byte(jump_ROM);       //·¢Ìø¹ýROMÃüÁî
+ 165   1        write_byte(start);          //·¢Æô¶¯×ª»»ÃüÁî
+ 166   1        Reset();
+ 167   1        write_byte(jump_ROM);       //·¢Ìø¹ýROMÃüÁî
+ 168   1        write_byte(read_EEROM);     //·¢Ìø¹ýROMÃüÁî
+ 169   1        TMPL=read_byte();           //¶ÁµÍ8Î»ÎÂ¶ÈÖµ
+ 170   1        TMPH=read_byte();           //¶Á¸ß8Î»ÎÂ¶ÈÖµ
+ 171   1        
+ 172   1        //EA = 0;
+ 173   1        T=TMPL+TMPH*256;     
+ 174   1        if(T==0xFFFF) return 0xFFFF;
+C51 COMPILER V9.53.0.0   MAIN                                                              10/15/2014 00:04:58 PAGE 4   
+
+ 175   1        if(T>0x8000)   //ÎÂ¶ÈÎª¸º
+ 176   1        {
+ 177   2          T=~T+1;
+ 178   2          return(0x8000+T*5/8);
+ 179   2        }
+ 180   1        else     //ÎÂ¶ÈÎ»Õý
+ 181   1        {
+ 182   2          return(T*5/8);
+ 183   2        }
+ 184   1      }
+ 185          void UARTSendByte(unsigned char byte)//?????????
+ 186          {
+ 187   1        SBUF=byte;              //???????????
+ 188   1        while(TI==0);          //??????,TI?????1
+ 189   1        TI=0;                    //?????????
+ 190   1      }
+ 191          void DisplayTemp(unsigned int temp)
+ 192          {
+ 193   1        uchar i=0;
+ 194   1        uchar TmpTable[3] = {0};
+ 195   1        TmpTable[ 0 ] = (temp%1000)/100;
+ 196   1        TmpTable[ 1 ] = (temp%100)/10;
+ 197   1        TmpTable[ 2 ] = (temp%10);
+ 198   1      
+ 199   1      //  UARTSendByte(TmpTable[0] + 0x30);Delay3(9);
+ 200   1      //  UARTSendByte(TmpTable[1] + 0x30);Delay3(9);
+ 201   1      //  UARTSendByte('.');Delay3(9);
+ 202   1      //  UARTSendByte(TmpTable[2] + 0x30);Delay3(9); 
+ 203   1      //  UARTSendByte(0x0d);Delay3(9); 
+ 204   1      //  UARTSendByte(0x0a);Delay3(9);
+ 205   1        WDSJ[0]=(TmpTable[0] + 0x30);
+ 206   1        WDSJ[1]=(TmpTable[1] + 0x30);
+ 207   1        WDSJ[2]=('.');
+ 208   1        WDSJ[3]=(TmpTable[2] + 0x30); 
+ 209   1      }
+ 210          void main(void)
+ 211          {
+ 212   1        char i=0;
+ 213   1        B_TX1_Busy = 0;
+ 214   1        RX1_Cnt = 0;
+ 215   1        TX1_Cnt = 0;
+ 216   1        S1_8bit();        //8Î»Êý¾Ý
+ 217   1        S1_USE_P30P31();    //UART1 Ê¹ÓÃP30 P31¿Ú Ä¬ÈÏ
+ 218   1        AUXR &= ~(1<<4);  //Timer stop    ²¨ÌØÂÊÊ¹ÓÃTimer2²úÉú
+ 219   1        AUXR |= 0x01;   //S1 BRT Use Timer2;
+ 220   1        AUXR |=  (1<<2);  //Timer2 set as 1T mode
+ 221   1        TH2 = (u8)(Timer2_Reload >> 8);
+ 222   1        TL2 = (u8)Timer2_Reload;
+ 223   1        AUXR |=  (1<<4);  //Timer run enable
+ 224   1        REN = 1;  //ÔÊÐí½ÓÊÕ
+ 225   1        ES  = 1;  //ÔÊÐíÖÐ¶Ï
+ 226   1        EA = 1;   //ÔÊÐíÈ«¾ÖÖÐ¶Ï
+ 227   1        P3M1 = 0x00;
+ 228   1        P3M0 = 0xFF;
+ 229   1        RX1_Cnt=0;
+ 230   1        DK1=0;
+ 231   1        BEEP=0;
+ 232   1        Delay2(1000);
+ 233   1        for(i=0;i<13;i++)//AT+CWMODE=2 ÉèÖÃ³ÉÂ·ÓÉÄ£Ê½
+ 234   1        {
+ 235   2          SBUF=LYMS[i];Delay1(1);
+ 236   2        }
+C51 COMPILER V9.53.0.0   MAIN                                                              10/15/2014 00:04:58 PAGE 5   
+
+ 237   1        Delay2(1000);
+ 238   1        for(i=0;i<38;i++)//AT+CWSAP="ESP8266","0123456789",11,0 ÉèÖÃÂ·ÓÉ
+ 239   1        {
+ 240   2          SBUF=SZLY[i];Delay1(1);
+ 241   2        }
+ 242   1        Delay2(1000);
+ 243   1        for(i=0;i<8;i++)//AT+RST ÖØÆô
+ 244   1        {
+ 245   2          SBUF=RST[i];Delay1(1);
+ 246   2        }
+ 247   1        Delay2(5000);
+ 248   1        for(i=0;i<13;i++)//AT+CIPMUX=1 ÉèÖÃ³É¶àÁ¬½Ó
+ 249   1        {
+ 250   2          SBUF=SZDLJ[i];Delay1(1);
+ 251   2        }
+ 252   1        Delay2(2000);
+ 253   1        for(i=0;i<21;i++)//AT+CIPSERVER=1,5000 ¿ªÆôTCP·þÎñ¶Ë¿Ú
+ 254   1        {
+ 255   2          SBUF=KQFU[i];Delay1(1);
+ 256   2        }
+ 257   1        Delay2(2000);
+ 258   1        Get_temp();
+ 259   1        Delay3(50000);
+ 260   1        Get_temp();
+ 261   1        Delay3(50000);
+ 262   1        while (1)
+ 263   1        {
+ 264   2          DisplayTemp(Get_temp());//Ë¢ÐÂ18B20
+ 265   2          if(K1==0)
+ 266   2          {
+ 267   3            Delay1(1);
+ 268   3            if(K1==0)
+ 269   3            {
+ 270   4              LED1=!LED1;
+ 271   4            }
+ 272   3            while(K1==0);
+ 273   3          }
+ 274   2          if(K2==0)
+ 275   2          {
+ 276   3            Delay1(1);
+ 277   3            if(K2==0)
+ 278   3            {
+ 279   4              LED2=!LED2;
+ 280   4            }
+ 281   3            while(K2==0);
+ 282   3          }
+ 283   2          if(K3==0)
+ 284   2          {
+ 285   3            Delay1(1);
+ 286   3            if(K3==0)
+ 287   3            {
+ 288   4              LED3=!LED3;
+ 289   4            }
+ 290   3            while(K3==0);
+ 291   3          }
+ 292   2        }
+ 293   1      }
+ 294          
+ 295          /********************* UART1ÖÐ¶Ïº¯Êý************************/
+ 296          void UART1_int (void) interrupt UART1_VECTOR
+ 297          {
+ 298   1        char i,a,b,c;
+C51 COMPILER V9.53.0.0   MAIN                                                              10/15/2014 00:04:58 PAGE 6   
+
+ 299   1        if(RI)
+ 300   1        {
+ 301   2          RI = 0;
+ 302   2          RX1_Buffer[RX1_Cnt] = SBUF;   //±£´æÒ»¸ö×Ö½Ú
+ 303   2          if(RX1_Buffer[0]==0x45)
+ 304   2          {
+ 305   3            RX1_Cnt++;
+ 306   3          }
+ 307   2          else
+ 308   2          {
+ 309   3            RX1_Cnt=0;
+ 310   3          }
+ 311   2          if(RX1_Cnt>=10)
+ 312   2          {
+ 313   3            if(RX1_Buffer[0]==0x45&&RX1_Buffer[1]==0x53&&RX1_Buffer[2]==0x50)
+ 314   3            {
+ 315   4              if(RX1_Buffer[4]==0x4C&&RX1_Buffer[5]==0x45&&RX1_Buffer[6]==0x44)//ÅÐ¶ÏLED
+ 316   4              {
+ 317   5                if(RX1_Buffer[7]==0x31)//ÅÐ¶ÏLED1
+ 318   5                {
+ 319   6                  if(RX1_Buffer[3]==0x4B)//ÅÐ¶Ï¿ª
+ 320   6                  {
+ 321   7                    LED1=0;
+ 322   7                  }
+ 323   6                  if(RX1_Buffer[3]==0x47)//ÅÐ¶Ï¹Ø
+ 324   6                  {
+ 325   7                    LED1=1;
+ 326   7                  }
+ 327   6                }
+ 328   5                if(RX1_Buffer[7]==0x32)//ÅÐ¶ÏLED2
+ 329   5                {
+ 330   6                  if(RX1_Buffer[3]==0x4B)//ÅÐ¶Ï¿ª
+ 331   6                  {
+ 332   7                    LED2=0;
+ 333   7                  }
+ 334   6                  if(RX1_Buffer[3]==0x47)//ÅÐ¶Ï¹Ø
+ 335   6                  {
+ 336   7                    LED2=1;
+ 337   7                  }
+ 338   6                }
+ 339   5                if(RX1_Buffer[7]==0x33)//ÅÐ¶ÏLED3
+ 340   5                {
+ 341   6                  if(RX1_Buffer[3]==0x4B)//ÅÐ¶Ï¿ª
+ 342   6                  {
+ 343   7                    LED3=0;
+ 344   7                  }
+ 345   6                  if(RX1_Buffer[3]==0x47)//ÅÐ¶Ï¹Ø
+ 346   6                  {
+ 347   7                    LED3=1;
+ 348   7                  }
+ 349   6                }
+ 350   5              }
+ 351   4              if(RX1_Buffer[4]==0x4A&&RX1_Buffer[5]==0x44&&RX1_Buffer[6]==0x51)//ÅÐ¶Ï¼ÌµçÆ÷
+ 352   4              {
+ 353   5                if(RX1_Buffer[7]==0x31)//ÅÐ¶ÏLED1
+ 354   5                {
+ 355   6                  if(RX1_Buffer[3]==0x4B)//ÅÐ¶Ï¿ª
+ 356   6                  {
+ 357   7                    DK1=1;
+ 358   7                  }
+ 359   6                  if(RX1_Buffer[3]==0x47)//ÅÐ¶Ï¹Ø
+ 360   6                  {
+C51 COMPILER V9.53.0.0   MAIN                                                              10/15/2014 00:04:58 PAGE 7   
+
+ 361   7                    DK1=0;
+ 362   7                  }
+ 363   6                }
+ 364   5              }
+ 365   4              if(RX1_Buffer[3]==0x46&&RX1_Buffer[4]==0x4D&&RX1_Buffer[5]==0x51&&RX1_Buffer[6]==0x43&&RX1_Buffer[7]==
+             -0x53)//ÅÐ¶Ï·äÃùÆ÷
+ 366   4              {
+ 367   5                BEEP=1;Delay2(100);BEEP=0;Delay2(100);BEEP=1;Delay2(100);BEEP=0;Delay2(100);
+ 368   5              }
+ 369   4              if(RX1_Buffer[3]==0x43&&RX1_Buffer[4]==0x58&&RX1_Buffer[5]==0x53&&RX1_Buffer[6]==0x4A)//²éÑ¯Êý¾Ý
+ 370   4              {
+ 371   5                if(LED1==0){a=0x4B;}else{a=0x47;}
+ 372   5                if(LED2==0){b=0x4B;}else{b=0x47;}
+ 373   5                if(LED3==0){c=0x4B;}else{c=0x47;}
+ 374   5                for(i=0;i<11;i++)//AT+CIPSEND= ·¢ËÍÊý¾Ý
+ 375   5                {
+ 376   6                  SBUF=FSSJ[i];Delay1(1);
+ 377   6                }
+ 378   5                SBUF=0x30;Delay1(1);
+ 379   5                SBUF=0x2C;Delay1(1);
+ 380   5                SBUF=0x32;Delay1(1);
+ 381   5                SBUF=0x36;Delay1(1);
+ 382   5                SBUF=0x0D;Delay1(1);
+ 383   5                SBUF=0x0A;Delay1(1);
+ 384   5                
+ 385   5                SBUF=0x45;Delay1(1);
+ 386   5                SBUF=0x53;Delay1(1);
+ 387   5                SBUF=0x50;Delay1(1);
+ 388   5                SBUF=0x4C;Delay1(1);
+ 389   5                SBUF=0x45;Delay1(1);
+ 390   5                SBUF=0x44;Delay1(1);
+ 391   5                SBUF=0x31;Delay1(1);
+ 392   5                SBUF=a;Delay1(1);
+ 393   5                SBUF=0x4C;Delay1(1);
+ 394   5                SBUF=0x45;Delay1(1);
+ 395   5                SBUF=0x44;Delay1(1);
+ 396   5                SBUF=0x32;Delay1(1);
+ 397   5                SBUF=b;Delay1(1);
+ 398   5                SBUF=0x4C;Delay1(1);
+ 399   5                SBUF=0x45;Delay1(1);
+ 400   5                SBUF=0x44;Delay1(1);
+ 401   5                SBUF=0x33;Delay1(1);
+ 402   5                SBUF=c;Delay1(1);
+ 403   5                SBUF=WDSJ[0];Delay1(1);
+ 404   5                SBUF=WDSJ[1];Delay1(1);
+ 405   5                SBUF=WDSJ[2];Delay1(1);
+ 406   5                SBUF=WDSJ[3];Delay1(1);
+ 407   5                SBUF=0x50;Delay1(1);
+ 408   5                SBUF=0x53;Delay1(1);
+ 409   5                SBUF=0x45;Delay1(1);
+ 410   5                //45 53 50 4C 45 44 31 4B 4C 45 44 32 4B 4C 45 44 33 4B 50 53 45 
+ 411   5              }
+ 412   4              RX1_Cnt=0;
+ 413   4            }
+ 414   3            else
+ 415   3            {
+ 416   4              RX1_Cnt=0;
+ 417   4            }
+ 418   3            RX1_Cnt=0;
+ 419   3          }
+ 420   2        }
+ 421   1        if(TI)
+C51 COMPILER V9.53.0.0   MAIN                                                              10/15/2014 00:04:58 PAGE 8   
+
+ 422   1        {
+ 423   2          TI = 0;
+ 424   2          B_TX1_Busy = 0;   //Çå³ý·¢ËÍÃ¦±êÖ¾
+ 425   2        }
+ 426   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1670    ----
+   CONSTANT SIZE    =      3    ----
+   XDATA SIZE       =    116      28
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =     32    ----
+   BIT SIZE         =      1    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
